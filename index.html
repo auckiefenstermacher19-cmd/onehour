@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f4f0">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e1210">
+<!-- Stops iOS turning the 9-digit unlock numbers in the guide into phone links. -->
+<meta name="format-detection" content="telephone=no">
+<meta name="referrer" content="no-referrer">
+<!-- default-src 'none' doubles as proof the page makes no network calls; user text can never run as script. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<title>One Hour</title>
+<link rel="icon" href="data:,">
+<!-- ?v= beats GitHub Pages' 10-minute cache; bump it with VERSION in app.js. -->
+<link rel="stylesheet" href="styles.css?v=1.0.0">
+<script defer src="logic.js?v=1.0.0"></script>
+<script defer src="app.js?v=1.0.0"></script>
+</head>
+<body>
+
+<div id="storage-banner" class="banner" role="alert" hidden>Safari is not saving data here (Private Browsing?). Spending won't be remembered.</div>
+
+<main class="wrap" id="main">
+  <div id="notices" class="notices" role="status" aria-live="polite"></div>
+
+  <!-- ============ GATE ============ -->
+  <section id="view-gate" class="view" hidden aria-labelledby="gate-app">
+    <h1 id="gate-app" class="gate-app"></h1>
+    <p id="gate-unknown" class="hint" hidden>This app isn't in your list. Add it in Settings to set its open link.</p>
+
+    <div class="balance" id="gate-balance">
+      <p class="balance-num"></p>
+      <p class="balance-label"></p>
+      <div class="bar" aria-hidden="true"><span class="bar-spent"></span></div>
+    </div>
+
+    <div id="gate-active" class="stack" hidden>
+      <p id="gate-active-text" class="lead"></p>
+      <button type="button" id="gate-reopen" class="btn btn-primary btn-block"></button>
+    </div>
+
+    <div id="gate-note-field" class="field">
+      <label for="gate-note">What are you opening it for?</label>
+      <input id="gate-note" type="text" maxlength="80" placeholder="Optional" autocomplete="off" enterkeyhint="done">
+    </div>
+
+    <div id="gate-spend" class="stack">
+      <button type="button" id="gate-last" class="btn btn-primary btn-block" data-min="0" hidden></button>
+      <div class="chips" role="group" aria-label="Minutes to spend">
+        <button type="button" class="chip" data-min="5"><span class="chip-num">5</span><span class="chip-unit">min</span></button>
+        <button type="button" class="chip" data-min="10"><span class="chip-num">10</span><span class="chip-unit">min</span></button>
+        <button type="button" class="chip" data-min="15"><span class="chip-num">15</span><span class="chip-unit">min</span></button>
+        <button type="button" class="chip chip-plain" id="gate-custom-toggle" aria-expanded="false" aria-controls="gate-custom"><span class="chip-word">Custom</span></button>
+      </div>
+      <form id="gate-custom" class="custom" hidden novalidate>
+        <label for="gate-custom-input">Minutes to spend</label>
+        <div class="row">
+          <input id="gate-custom-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" enterkeyhint="go">
+          <button type="submit" id="gate-custom-spend" class="btn btn-primary">Spend</button>
+        </div>
+        <p id="gate-custom-msg" class="msg" role="alert"></p>
+      </form>
+    </div>
+
+    <div id="gate-empty" class="stack" hidden>
+      <p class="lead">You're out of minutes for today. Resets at midnight.</p>
+      <div id="gate-emergency-box" class="stack-tight" hidden>
+        <button type="button" id="gate-emergency" class="btn btn-amber btn-block"></button>
+        <p class="hint">Logged as an emergency. Doesn't come back tomorrow.</p>
+      </div>
+    </div>
+
+    <div id="gate-dm" class="stack-tight dm" hidden>
+      <button type="button" id="gate-dm-btn" class="btn btn-quiet btn-block"></button>
+      <p id="gate-dm-note" class="hint"></p>
+      <a id="gate-dm-web" class="textlink" href="https://www.instagram.com/direct/inbox/" rel="noopener" hidden>Or open DMs in Safari instead</a>
+    </div>
+
+    <p id="gate-msg" class="msg" role="alert"></p>
+    <button type="button" id="gate-notnow" class="btn btn-secondary btn-block">Not now</button>
+  </section>
+
+  <!-- ============ UNLOCKED ============ -->
+  <section id="view-unlocked" class="view" hidden aria-labelledby="unlocked-text">
+    <h1 id="unlocked-text" class="title"></h1>
+    <p id="unlocked-sub" class="lead"></p>
+    <a class="btn btn-secondary btn-block" data-nav="home" href="#home">Home</a>
+  </section>
+
+  <!-- ============ HOME ============ -->
+  <section id="view-home" class="view" hidden aria-label="Today">
+    <p id="home-date" class="eyebrow"></p>
+    <div class="balance" id="home-balance">
+      <p class="balance-num"></p>
+      <p class="balance-label"></p>
+      <div class="bar" aria-hidden="true"><span class="bar-spent"></span></div>
+    </div>
+
+    <ul id="home-active" class="active-list" hidden></ul>
+
+    <dl class="figures">
+      <div><dt>Spent</dt><dd id="fig-spent"></dd></div>
+      <div><dt>Resisted</dt><dd id="fig-resisted"></dd></div>
+      <div id="fig-emergency-box"><dt>Emergency</dt><dd id="fig-emergency"></dd></div>
+    </dl>
+
+    <h2 class="section-title">Today</h2>
+    <ol id="home-sessions" class="ledger"></ol>
+    <p id="home-empty" class="empty">Nothing spent yet today.</p>
+
+    <h2 class="section-title">Last 7 days</h2>
+    <div id="home-week" class="week"></div>
+    <p class="hint legend"><span class="key key-spent"></span>Spent <span class="key key-em"></span>Emergency <span class="key key-line"></span>Budget</p>
+
+    <nav class="links" aria-label="More">
+      <a data-nav="settings" href="#settings">Settings</a>
+      <a data-nav="setup" href="#setup">Setup guide</a>
+      <a data-nav="limits" href="#limits">Honest limits</a>
+    </nav>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section id="view-settings" class="view" hidden aria-labelledby="settings-title">
+    <h1 id="settings-title" class="title">Settings</h1>
+
+    <form id="form-budget" class="group" novalidate>
+      <h2 class="group-title">Daily budget</h2>
+      <div class="field">
+        <label for="set-budget">Minutes per day</label>
+        <div class="row">
+          <input id="set-budget" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+      <p id="msg-budget" class="msg" role="status"></p>
+    </form>
+
+    <form id="form-passes" class="group" novalidate>
+      <h2 class="group-title">DM pass</h2>
+      <div class="pair">
+        <div class="field"><label for="set-dmPassMin">Length (min)</label><input id="set-dmPassMin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off"></div>
+        <div class="field"><label for="set-dmPassCap">Passes per day</label><input id="set-dmPassCap" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off"></div>
+      </div>
+      <h2 class="group-title">Emergency</h2>
+      <div class="pair">
+        <div class="field"><label for="set-emergencyMin">Length (min)</label><input id="set-emergencyMin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off"></div>
+        <div class="field"><label for="set-emergencyCap">Per day</label><input id="set-emergencyCap" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off"></div>
+      </div>
+      <p class="hint">DM pass 1–10 min, 0–20 a day. Emergency 1–15 min, 0–3 a day. A limit of 0 turns that feature off.</p>
+      <button type="submit" class="btn btn-secondary btn-block">Save passes</button>
+      <p id="msg-passes" class="msg" role="status"></p>
+    </form>
+
+    <div class="group">
+      <h2 class="group-title">Apps</h2>
+      <ul id="app-list" class="app-list"></ul>
+      <form id="form-add" class="add-app" novalidate>
+        <h3 class="sub-title">Add app</h3>
+        <div class="field"><label for="add-name">Name</label><input id="add-name" type="text" maxlength="40" autocomplete="off" placeholder="BeReal"></div>
+        <div class="field"><label for="add-id">Id</label><input id="add-id" type="text" maxlength="24" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="bereal"></div>
+        <button type="submit" class="btn btn-secondary btn-block">Add app</button>
+        <p id="msg-add" class="msg" role="status"></p>
+      </form>
+    </div>
+
+    <div class="group" id="backup">
+      <h2 class="group-title">Backup</h2>
+      <p class="hint">Your budget lives only in Safari on this phone. Export now and then, so clearing Safari doesn't wipe your history.</p>
+      <button type="button" id="btn-export" class="btn btn-secondary btn-block">Export</button>
+      <div id="export-box" class="stack-tight" hidden>
+        <label for="export-text">If no download appeared, copy this and keep it in Notes:</label>
+        <textarea id="export-text" readonly rows="5"></textarea>
+        <button type="button" class="btn btn-quiet btn-block" data-copy-from="export-text"><span class="copy-label">Copy</span></button>
+      </div>
+
+      <h3 class="sub-title" id="import">Import</h3>
+      <div class="field">
+        <label for="import-file">Backup file</label>
+        <input id="import-file" type="file" accept=".json,application/json,text/plain">
+      </div>
+      <div class="field">
+        <label for="import-text">Or paste a backup</label>
+        <textarea id="import-text" rows="4" autocapitalize="none" autocorrect="off" spellcheck="false"></textarea>
+      </div>
+      <button type="button" id="btn-import" class="btn btn-secondary btn-block">Import pasted backup</button>
+      <p id="msg-import" class="msg" role="status"></p>
+    </div>
+
+    <div class="group">
+      <h2 class="group-title">Erase</h2>
+      <button type="button" id="btn-erase" class="btn btn-danger btn-block">Erase all data</button>
+      <p id="msg-erase" class="msg" role="status"></p>
+    </div>
+  </section>
+
+  <!-- ============ SETUP GUIDE (SPEC section 8) ============ -->
+  <section id="view-setup" class="view prose" hidden aria-labelledby="setup-title">
+    <h1 id="setup-title" class="title">Setup guide</h1>
+    <p><strong>Use this page in Safari. Do not Add to Home Screen; a home-screen copy keeps separate data and the shortcuts open Safari.</strong></p>
+
+    <div class="addr">
+      <p class="addr-label">Your page address</p>
+      <button type="button" class="tok tok-block" data-copy-fill="pageUrl"><code data-fill="pageUrl"></code><span class="copy-label">Copy</span></button>
+    </div>
+
+    <p class="hint"><strong>Status of these steps: written from Apple's and Matthew Cassinelli's action documentation, not yet done on your phone. Button labels can differ slightly between iOS 17, 18 and 26.</strong> Each stage ends with a check so a wrong label is caught at once.</p>
+
+    <h2>Before you start</h2>
+    <ol>
+      <li>iPhone on iOS 17 or later (Settings &gt; General &gt; About). Older versions ask for confirmation on every app open.</li>
+      <li>Settings &gt; [your name] &gt; iCloud &gt; iCloud Drive is on. The unlock files live in iCloud Drive &gt; Shortcuts.</li>
+      <li>Safari must be your default browser (Settings &gt; Apps &gt; Safari &gt; Default Browser App &gt; Safari). Otherwise the gates open in a different browser, which keeps a separate wallet.</li>
+      <li>Open the web app address in Safari and bookmark it.</li>
+      <li>Optional, keeps Safari tidy because every gate opens a new tab: Settings &gt; Apps &gt; Safari &gt; Close Tabs &gt; After One Day.</li>
+      <li>Never make an automation for Safari, Shortcuts, Clock or Files.</li>
+    </ol>
+
+    <h2>How to read the steps</h2>
+    <p>Each action shows up as a short sentence with some words in blue. A blue word is a slot: tap it to change it. Some slots arrive already filled with the result of the action above; each step says what you will see and what to change. To put a variable in a slot, tap the slot, then pick the variable from the row above the keyboard (or tap <strong>Select Variable</strong> and then tap the action whose result you want).</p>
+
+    <h2>Stage 1: build "OH Unlock" (12 actions)</h2>
+    <ol>
+      <li>Open <strong>Shortcuts</strong>. Tap the <strong>Shortcuts</strong> tab, then <strong>+</strong> (top right).</li>
+      <li>Tap the name at the top, <strong>Rename</strong>, type <button type="button" class="tok" data-copy="OH Unlock"><code>OH Unlock</code><span class="copy-label">Copy</span></button> exactly (capital O, H, U; one space). Done.</li>
+      <li>For each action below: tap the <strong>Search Actions</strong> bar at the bottom, type the action name, tap it. It is added under the one before.</li>
+    </ol>
+    <p class="actions-label">The 12 actions, in order</p>
+    <ol class="actions">
+      <li><strong>Split Text</strong>. It reads "Split <strong>Text</strong> by <strong>New Lines</strong>". Tap <strong>Text</strong> and choose <strong>Shortcut Input</strong>; a "Receive … input" block appears at the top, leave it as it is. Tap <strong>New Lines</strong>, choose <strong>Custom</strong>, and type <button type="button" class="tok" data-copy="|"><code>|</code><span class="copy-label">Copy</span></button> (the vertical bar) in the box that appears.</li>
+      <li><strong>Get Item from List</strong>. It reads "Get <strong>First Item</strong> from <strong>Split Text</strong>". Leave it as it is.</li>
+      <li><strong>Set Variable</strong>. It reads "Set variable <strong>Variable Name</strong> to <strong>Item from List</strong>". Tap <strong>Variable Name</strong> and type <button type="button" class="tok" data-copy="Minutes"><code>Minutes</code><span class="copy-label">Copy</span></button>. Leave <strong>Item from List</strong>.</li>
+      <li><strong>Get Item from List</strong>. The list slot will probably not say Split Text. Tap it and pick <strong>Split Text</strong>, the result of action 1, not Item from List. Then tap <strong>First Item</strong>, choose <strong>Item At Index</strong>, and type <code>2</code> in the box that appears.</li>
+      <li><strong>Set Variable</strong>. Tap <strong>Variable Name</strong> and type <button type="button" class="tok" data-copy="App"><code>App</code><span class="copy-label">Copy</span></button>. Leave the second slot: it already holds the Item from List of action 4, the one directly above. Two results are called Item from List; if you ever have to re-pick it, use <strong>Select Variable</strong> and tap action 4.</li>
+      <li><strong>Get Item from List</strong>. Again tap the list slot and pick <strong>Split Text</strong>, not Item from List. Tap <strong>First Item</strong> and choose <strong>Last Item</strong>.</li>
+      <li><strong>Set Variable</strong>. Tap <strong>Variable Name</strong> and type <button type="button" class="tok" data-copy="Link"><code>Link</code><span class="copy-label">Copy</span></button>. Leave the second slot: it holds the Item from List of action 6.</li>
+      <li><strong>Adjust Date</strong>. It reads roughly "Add <strong>0</strong> <strong>seconds</strong> to <strong>Date</strong>"; the date slot may already show another variable. Tap the number and pick the variable <strong>Minutes</strong>. Tap the unit and choose <strong>minutes</strong>. Tap the date slot and pick <strong>Current Date</strong>.</li>
+      <li><strong>Format Date</strong>. Its date slot should say <strong>Adjusted Date</strong>; if not, tap it and pick <strong>Adjusted Date</strong>. Tap the date format (it may say Medium or Short) and choose <strong>ISO 8601</strong>. Then tap the small arrow (or <strong>Show More</strong>) and turn <strong>Include ISO 8601 Time</strong> on.</li>
+      <li><strong>Save File</strong>. It reads "Save <strong>Formatted Date</strong> to …"; if the first slot is not Formatted Date, tap it and pick <strong>Formatted Date</strong>. Tap the arrow to expand: <strong>Ask Where to Save</strong> off; the folder must be <strong>Shortcuts</strong>; <strong>Subpath</strong> = <button type="button" class="tok" data-copy="onehour-"><code>onehour-</code><span class="copy-label">Copy</span></button> then the variable <strong>App</strong> then <button type="button" class="tok" data-copy=".txt"><code>.txt</code><span class="copy-label">Copy</span></button>; <strong>Overwrite If File Exists</strong> on.</li>
+      <li><strong>Start Timer</strong>. It reads "Start timer for <strong>30</strong> <strong>minutes</strong>" (the number may differ). Tap the number and pick the variable <strong>Minutes</strong>. Leave the unit on minutes. Optional: this is the "time's up" alarm. Leave it out if you don't want it.</li>
+      <li><strong>Open URLs</strong>. Tap its slot and pick the variable <strong>Link</strong>, not Item from List and not Shortcut Input.</li>
+    </ol>
+    <ol start="4">
+      <li>Tap <strong>Done</strong>.</li>
+    </ol>
+
+    <div class="check">
+      <p><strong>Check 1.</strong> Tap the <strong>Test OH Unlock</strong> button in this guide. Expect, in order: Safari may ask "Open in Shortcuts?" → Open. Shortcuts may ask permission to save a file and to open a link → <strong>Always Allow</strong>. A 1-minute timer starts. Safari shows "Test passed."</p>
+      <a id="test-unlock" class="btn btn-primary btn-block" href="#setup">Test OH Unlock</a>
+      <p class="hint">The test writes onehour-test.txt, starts a 1-minute timer and comes back here. It logs nothing and unlocks no real app.</p>
+    </div>
+    <div class="check">
+      <p><strong>Check 2.</strong> Open the <strong>Files</strong> app &gt; Browse &gt; iCloud Drive &gt; <strong>Shortcuts</strong> &gt; <button type="button" class="tok" data-copy="onehour-test"><code>onehour-test</code><span class="copy-label">Copy</span></button>. It must show today's date and a time about 1 minute after you tapped the test, written like 2026-11-22T21:15:03+01:00 (a T between the date and the time; the ending can look different). Anything else means an action is wrong: a time that is not about 1 minute later, a plain number, a web address, or an empty file. See Troubleshooting.</p>
+    </div>
+
+    <h2>Stage 2: build "OH Gate" (5 actions)</h2>
+    <ol>
+      <li>Shortcuts &gt; <strong>+</strong>. Rename to <button type="button" class="tok" data-copy="OH Gate"><code>OH Gate</code><span class="copy-label">Copy</span></button>.</li>
+    </ol>
+    <p class="actions-label">The 5 actions, in order</p>
+    <ol class="actions">
+      <li><strong>Get File from Folder</strong> (called <strong>Get File</strong> on older iOS). If its folder slot is not <strong>Shortcuts</strong>, tap it and choose <strong>Shortcuts</strong>. Tap the file path slot and type <button type="button" class="tok" data-copy="onehour-"><code>onehour-</code><span class="copy-label">Copy</span></button>, then pick the variable <strong>Shortcut Input</strong>, then type <button type="button" class="tok" data-copy=".txt"><code>.txt</code><span class="copy-label">Copy</span></button>. Tap the arrow to expand: <strong>Error If Not Found</strong> off.</li>
+      <li><strong>Get Dates from Input</strong>. It reads "Get dates from <strong>File</strong>". Leave it as it is.</li>
+      <li><strong>If</strong>. The first slot should say <strong>Dates</strong>; if not, tap it and pick <strong>Dates</strong>. Tap <strong>Condition</strong> and choose <strong>is after</strong>. Tap the slot that appears next to it and pick <strong>Current Date</strong>. The If brings <strong>Otherwise</strong> and <strong>End If</strong> with it.</li>
+      <li><strong>Stop This Shortcut</strong>. Drag it so it sits directly under <strong>If</strong>, above <strong>Otherwise</strong>.</li>
+      <li><strong>Open URLs</strong>. Drag it under <strong>Otherwise</strong>, above <strong>End If</strong>. Tap its slot, type or paste your page address followed by <code>?app=</code>, then pick the variable <strong>Shortcut Input</strong>, not File and not Dates. This guide shows that exact address with a Copy button. <button type="button" class="tok" data-copy-fill="gateUrl"><code data-fill="gateUrl"></code><span class="copy-label">Copy</span></button></li>
+    </ol>
+    <ol start="2">
+      <li>Tap <strong>Done</strong>.</li>
+    </ol>
+
+    <div class="check">
+      <p><strong>Check 3.</strong> Before making any automation, run OH Gate once by hand: in the Shortcuts list, tap <strong>OH Gate</strong>. If it asks for text, leave it empty and tap Done. Answer every prompt (access to a file, opening a link) with <strong>Always Allow</strong>. Pass: Safari opens this page with the notice "That link did not name an app." That is expected here, because nothing told OH Gate which app it was. Doing it now means the prompts appear in front of you, not hidden while an app is opening.</p>
+    </div>
+
+    <h2>Stage 3: one automation per app (2 actions each)</h2>
+    <p>Repeat these steps once for each app you want to budget, each with its own id.</p>
+    <div id="setup-apps" class="setup-apps"></div>
+
+    <div class="check">
+      <p><strong>Check 4 (the whole loop).</strong> Open Instagram from the Home Screen.</p>
+      <ul>
+        <li>Safari should open on the gate showing "Instagram" and your balance. (This is also the "no unlock file yet" case.)</li>
+        <li>Tap <strong>5</strong>. Allow any prompts. Instagram opens and stays open. A 5-minute timer is running.</li>
+        <li>Go to the Home Screen and open Instagram again: it opens straight away.</li>
+        <li>After the timer rings, leave Instagram and open it again: the gate is back and the balance shows 55.</li>
+      </ul>
+    </div>
+    <p>If an app does not open by itself after you spend, go to Settings in this web app, clear that app's open link, and from then on you will see "unlocked, open it from your Home Screen."</p>
+
+    <h2>Stage 4 (recommended backstop): Apple's own limit</h2>
+    <p>Settings &gt; Screen Time &gt; App Limits &gt; Add Limit, pick the same apps, set the same daily time. This is the only free thing that truly blocks. Details are in <a data-nav="limits" href="#limits">Honest limits</a>.</p>
+
+    <h2>Troubleshooting</h2>
+    <dl class="trouble">
+      <dt>"Shortcut not found" / nothing runs after tapping a spend button</dt>
+      <dd>The shortcut must be named exactly <button type="button" class="tok" data-copy="OH Unlock"><code>OH Unlock</code><span class="copy-label">Copy</span></button></dd>
+      <dt>Check 1: Safari never shows "Test passed"</dt>
+      <dd>OH Unlock actions 4 and 6 must read from <strong>Split Text</strong>, and action 12 must open the variable <strong>Link</strong>. A list slot left on Item from List makes Link empty or wrong</dd>
+      <dt>Check 2: the file is called onehour-.txt (nothing between the dash and the dot), or the gate never unlocks</dt>
+      <dd>OH Unlock action 4 reads the wrong list, so App is empty. Pick <strong>Split Text</strong> there</dd>
+      <dt>Check 2: the time is about now, or only seconds ahead</dt>
+      <dd>OH Unlock action 8: the unit must be <strong>minutes</strong> and the number must be the variable <strong>Minutes</strong></dd>
+      <dt>Check 2: the date or time is far off</dt>
+      <dd>OH Unlock action 8: the date slot must be <strong>Current Date</strong></dd>
+      <dt>Check 2: the file holds a plain number, a web address or nothing</dt>
+      <dd>OH Unlock action 9 must format <strong>Adjusted Date</strong> and action 10 must save <strong>Formatted Date</strong></dd>
+      <dt>An error about a file not being found when you open the app</dt>
+      <dd>OH Gate action 1: turn <strong>Error If Not Found</strong> off</dd>
+      <dt>The app always opens, the gate never appears</dt>
+      <dd>Check the automation exists, is on, and its Text matches the app id. Then check OH Gate action 3 reads <strong>Dates</strong> <strong>is after</strong> <strong>Current Date</strong></dd>
+      <dt>The gate appears every time, even right after spending</dt>
+      <dd>The file names must match: OH Unlock action 10 and OH Gate action 1 must both be onehour- + variable + .txt. Open the file in Files: right after spending it must show a time in the future. If it does, check OH Gate action 3 says <strong>is after</strong>, not is before</dd>
+      <dt>The gate page says "That link did not name an app" when you open an app</dt>
+      <dd>OH Gate action 5: the variable Shortcut Input is missing after ?app=, or the automation's Run Shortcut has no Input. (In Check 3 this notice is the expected result)</dd>
+      <dt>Gates open in Chrome or another browser, with a full balance</dt>
+      <dd>Make Safari the default browser: Settings &gt; Apps &gt; Safari &gt; Default Browser App</dd>
+      <dt>Instagram and Safari keep swapping forever</dt>
+      <dd>Some shortcut has an <strong>Open App</strong> action. Delete it. Turn the automation off first: Shortcuts &gt; Automation &gt; tap it &gt; toggle</dd>
+      <dt>iOS asks "Run automation?" each time</dt>
+      <dd>Open the automation and switch it to <strong>Run Immediately</strong></dd>
+      <dt>The balance is back to full and history is gone</dt>
+      <dd>Safari's data was cleared. <a data-nav="settings" href="#settings">Settings</a> &gt; Import your last backup</dd>
+    </dl>
+  </section>
+
+  <!-- ============ HONEST LIMITS (SPEC section 9, verbatim) ============ -->
+  <section id="view-limits" class="view prose" hidden aria-labelledby="limits-title">
+    <h1 id="limits-title" class="title">This is a speed bump, not a lock.</h1>
+    <p>It works because it makes you stop and choose, every time. It does not make cheating impossible, and it would be dishonest to pretend otherwise. Here is exactly how you can get around it, so you know what you are relying on:</p>
+    <ul class="limits">
+      <li><strong>You can switch it off.</strong> Delete or pause the automation in the Shortcuts app and the gate is gone.</li>
+      <li><strong>Minutes are counted when you buy them, not while you scroll.</strong> Buy 10 and leave after 2, and 10 are still spent. That is on purpose.</li>
+      <li><strong>Nothing closes the app when time is up.</strong> The timer rings; the app stays open. The gate only comes back the next time you open or return to the app.</li>
+      <li><strong>While an app is unlocked, it is unlocked however you open it</strong>, including from search or a notification.</li>
+      <li><strong>The wallet lives in Safari on this phone.</strong> Clearing Safari's website data resets the balance and the history. Safari can also clear it by itself if you do not visit this page for about a week. Export a backup from Settings now and then.</li>
+      <li><strong>You can edit your own rules.</strong> Raising the daily budget only starts tomorrow once you have spent today, but passes, caps and the app list can be changed at any time.</li>
+      <li><strong>The DM pass is just three free minutes in the real Instagram.</strong> No web page can hide the feed inside Instagram's own app. The paid app does this with a private in-app view; this free version cannot.</li>
+      <li><strong>A few edge cases.</strong> If you travel to another time zone, "today" follows the phone's clock, so that day's budget can cover a few hours more or less. Tapping Open again while an app is unlocked starts another timer and can stretch the unlock by up to a minute. If iCloud Drive is off, the unlock files may not save.</li>
+    </ul>
+    <p><strong>Want a real lock behind it?</strong> Use Apple's built-in limit as the backstop: Settings &gt; Screen Time &gt; App Limits &gt; Add Limit, choose the same apps, set the same daily time, and have someone you trust set the Screen Time passcode. That is the only free option where the iPhone itself blocks the app. Paid apps such as one hour or Opal use an Apple permission that is not available without a paid developer account, which is why this one cannot do it.</p>
+  </section>
+</main>
+
+<footer class="foot">
+  <nav class="foot-links" aria-label="Pages">
+    <a data-nav="home" href="#home">Home</a><span aria-hidden="true">·</span><a data-nav="settings" href="#settings">Settings</a><span aria-hidden="true">·</span><a data-nav="setup" href="#setup">Setup guide</a><span aria-hidden="true">·</span><a data-nav="limits" href="#limits">Honest limits</a>
+  </nav>
+  <p class="version" id="version"></p>
+</footer>
+</body>
+</html>

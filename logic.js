@@ -6,7 +6,7 @@
  * without stubbing clocks. Functions never mutate the state they are given;
  * they return a new one, so a refused action can never leave half a change.
  *
- * Plain script, no import/export: Safari loads it with a classic <script>,
+ * Plain script, no import/export: the browser loads it with a classic <script>,
  * Node loads it with `import './logic.js'`. The IIFE keeps helpers out of the
  * browser's global scope; only `globalThis.OneHour` escapes.
  */
@@ -315,11 +315,25 @@
     return out;
   }
 
+  // Chrome on iOS registers googlechromes:// (https) and googlechrome://
+  // (http). Shortcuts' Open URLs sends a plain https address to Safari
+  // whatever the default browser is, so the app's own page address goes
+  // through this. User-set app links are not converted: some need Safari.
+  // Anything that isn't http(s) is returned unchanged.
+  function toChromeUrl(url) {
+    const s = String(url == null ? '' : url);
+    if (/^https:\/\//i.test(s)) return 'googlechromes://' + s.slice(8);
+    if (/^http:\/\//i.test(s)) return 'googlechrome://' + s.slice(7);
+    return s;
+  }
+
   // The link is never empty: with no app link, OH Unlock is sent back to this
-  // page's ?unlocked= view, so the shortcut needs no "if blank" branch.
+  // page's ?unlocked= view (in Chrome), so the shortcut needs no "if blank"
+  // branch. The fallback is built here, not taken from the user, so it skips
+  // sanitizeOpenUrl; user-set links still go through it.
   function buildUnlockUrl(opts) {
     const { min, app, openUrl, pageUrl } = opts;
-    const link = sanitizeOpenUrl(openUrl) || pageUrl + '?unlocked=' + app;
+    const link = sanitizeOpenUrl(openUrl) || toChromeUrl(pageUrl + '?unlocked=' + app);
     return 'shortcuts://run-shortcut?name=OH%20Unlock&input=text&text=' +
       encodeURIComponent(min + '|' + app + '|' + link);
   }
@@ -402,7 +416,7 @@
     RANGES, DEFAULT_SETTINGS,
     defaultState, dayKey, sanitizeAppId, sanitizeOpenUrl, slugify, getApp, budgetFor,
     summary, activeSession, validateCustom, spend, emergency, dmPass, resist,
-    setBudget, updateSettings, addApp, updateApp, removeApp, week, buildUnlockUrl,
+    setBudget, updateSettings, addApp, updateApp, removeApp, week, toChromeUrl, buildUnlockUrl,
     exportData, importData, loadStored, prune,
   };
 })();

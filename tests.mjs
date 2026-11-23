@@ -181,7 +181,7 @@ test('19 buildUnlockUrl', () => {
   assert.equal(OH.buildUnlockUrl({ min: 10, app: 'instagram', openUrl: 'instagram://', pageUrl: 'https://example.github.io/onehour/' }),
     'shortcuts://run-shortcut?name=OH%20Unlock&input=text&text=10%7Cinstagram%7Cinstagram%3A%2F%2F');
   assert.equal(OH.buildUnlockUrl({ min: 5, app: 'tiktok', openUrl: '', pageUrl: 'https://example.github.io/onehour/' }),
-    'shortcuts://run-shortcut?name=OH%20Unlock&input=text&text=5%7Ctiktok%7Chttps%3A%2F%2Fexample.github.io%2Fonehour%2F%3Funlocked%3Dtiktok');
+    'shortcuts://run-shortcut?name=OH%20Unlock&input=text&text=5%7Ctiktok%7Cgooglechromes%3A%2F%2Fexample.github.io%2Fonehour%2F%3Funlocked%3Dtiktok');
 });
 
 test('20 sanitizeAppId', () => {
@@ -259,6 +259,19 @@ test('26 importData drops future-dated events', () => {
 test('27 sanitizeOpenUrl bans workflow://', () => {
   assert.equal(OH.sanitizeOpenUrl('workflow://run-workflow?name=x'), '');
   assert.equal(OH.sanitizeOpenUrl('WORKFLOW://x'), '');
+});
+
+test('28 toChromeUrl', () => {
+  assert.equal(OH.toChromeUrl('https://x/y?z'), 'googlechromes://x/y?z');
+  assert.equal(OH.toChromeUrl('http://x/y?z'), 'googlechrome://x/y?z');
+  assert.equal(OH.toChromeUrl('HTTPS://x.github.io/onehour/?app='), 'googlechromes://x.github.io/onehour/?app=');
+  for (const u of ['instagram://', 'file:///C:/a/index.html', 'googlechromes://x/y', '']) assert.equal(OH.toChromeUrl(u), u);
+});
+
+test('29 Chrome links pass the app-link check, unsafe schemes still do not', () => {
+  assert.equal(OH.sanitizeOpenUrl('googlechromes://x.com/a'), 'googlechromes://x.com/a');
+  assert.equal(OH.sanitizeOpenUrl('googlechrome://x.com/a'), 'googlechrome://x.com/a');
+  for (const raw of ['javascript://x', 'data://x', 'file://x', 'shortcuts://run', 'workflow://run']) assert.equal(OH.sanitizeOpenUrl(raw), '', raw);
 });
 
 // Extra checks for helpers app.js relies on (not in SPEC 12a).

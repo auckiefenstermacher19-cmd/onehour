@@ -6,9 +6,11 @@
  *  1. Every handler re-reads localStorage and uses Date.now() at the tap.
  *     Never trust state from an earlier render: another tab, a reload, or
  *     midnight may have changed it.
- *  2. The shortcuts:// navigation happens synchronously inside the tap
- *     handler. Safari only allows the app jump from a direct user gesture;
- *     any await, timer or promise before it and Safari silently drops it.
+ *  2. The shortcuts:// jump is a real <a href> the user taps, and the spend
+ *     is recorded synchronously inside that tap's click handler. Browsers
+ *     only allow app jumps from a direct user gesture, and whether Chrome on
+ *     iOS accepts a scripted one is unconfirmed; any await, timer or promise
+ *     in the handler would also break the gesture.
  */
 (function () {
   'use strict';
@@ -193,59 +195,87 @@
     $('gate-spend').hidden = !!active || s.balance === 0;
     $('gate-empty').hidden = !!active || s.balance > 0;
 
+    // Only visible controls get their href refreshed. A control that was just
+    // tapped is hidden by this very render, and touching its href here would
+    // change where the tap navigates.
     if (active) {
       $('gate-active-text').textContent = app.name + ' is unlocked until ' + fmtTime(active.endsAt) + '.';
-      $('gate-reopen').textContent = 'Open ' + app.name + ' (' + active.minLeft + ' min left)';
+      const reopenLink = $('gate-reopen');
+      reopenLink.textContent = 'Open ' + app.name + ' (' + active.minLeft + ' min left)';
+      setLink(reopenLink, unlockUrlFor(state, id, active.event.type, active.minLeft));
     } else if (s.balance > 0) {
-      document.querySelectorAll('#gate-spend .chip[data-min]').forEach((b) => {
-        b.disabled = Number(b.dataset.min) > s.balance;
+      document.querySelectorAll('#gate-spend .chip[data-min]').forEach((a) => {
+        const min = Number(a.dataset.min);
+        setLink(a, min > s.balance ? '' : '#');
       });
       const last = $('gate-last');
       last.hidden = s.balance >= 5;
       last.dataset.min = String(s.balance);
       last.textContent = 'Spend the last ' + s.balance;
-      last.disabled = false;
+      setLink(last, '#');
       $('gate-custom-toggle').disabled = false;
-      $('gate-custom-spend').disabled = false;
+      // Every charging link holds '#' until buy() charges and writes the real
+      // address in the same tap, so a long-press "open" or a copied link unlocks nothing.
+      setLink($('gate-custom-spend'), '#');
     } else {
       const showEm = s.emergencyLeft > 0;
       $('gate-emergency-box').hidden = !showEm;
-      $('gate-emergency').disabled = false;
       $('gate-emergency').textContent = 'Emergency ' + set.emergencyMin + ' min (' + s.emergencyLeft + ' left today)';
+      setLink($('gate-emergency'), '#');
     }
 
     const showDm = !active && app.dm === true && set.dmPassCap > 0;
     $('gate-dm').hidden = !showDm;
     if (showDm) {
-      const btn = $('gate-dm-btn');
-      btn.disabled = s.dmLeft === 0;
-      btn.textContent = s.dmLeft === 0
+      const dmLink = $('gate-dm-btn');
+      dmLink.textContent = s.dmLeft === 0
         ? 'DM passes used up today'
         : 'DM pass · ' + set.dmPassMin + ' min · free (' + s.dmLeft + ' left today)';
+      setLink(dmLink, s.dmLeft === 0 ? '' : '#');
       $('gate-dm-note').textContent = 'Opens ' + app.name + ' for ' + plural(set.dmPassMin, 'minute') +
         " so you can answer messages. It can't hide the feed; that part is on you.";
-      // The web inbox link is Instagram's own URL; it means nothing for other apps.
-      $('gate-dm-web').hidden = id !== 'instagram';
     }
 
-    $('gate-reopen').disabled = false;
     $('gate-notnow').disabled = notNowUsed;
     $('gate-msg').textContent = gateMsg;
     $('gate-custom-msg').textContent = customMsg;
   }
 
+  // Unlock controls are real <a href="shortcuts://..."> links, not buttons
+  // that assign location.href: whether Chrome on iOS lets a script start an
+  // app jump is unconfirmed, while following a link the user tapped is the
+  // most ordinary thing a browser does. An empty url means "disabled".
+  function setLink(a, url) {
+    if (url) { a.href = url; a.removeAttribute('aria-disabled'); }
+    else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); }
+  }
+
+  // Step 1 of a spend. Links are only marked, never stripped of their href,
+  // because the tapped link still has to navigate when the handler returns.
   function setGateDisabled(on) {
     $('view-gate').querySelectorAll('button').forEach((b) => { b.disabled = on; });
+    $('view-gate').querySelectorAll('a.unlock').forEach((a) => {
+      if (on) a.setAttribute('aria-disabled', 'true');
+    });
   }
 
   function unlockLink(app, type) {
     return type === 'dm' ? (app.dmUrl || app.openUrl) : app.openUrl;
   }
 
-  // The whole purchase, synchronously, in the order SPEC 5.1 gives.
-  function buy(kind, min, fromCustom) {
+  function unlockUrlFor(state, appId, type, min) {
+    return OH.buildUnlockUrl({
+      min, app: appId, openUrl: unlockLink(OH.getApp(state, appId), type), pageUrl: pageUrl(),
+    });
+  }
+
+  // The whole purchase, synchronously, in the order SPEC 5.1 gives. `e` is
+  // the click on an unlock link: refusing means preventDefault; succeeding
+  // means pointing the link at the fresh URL and letting the tap follow it.
+  function buy(e, kind, min, fromCustom) {
+    const a = e.currentTarget;
     const r = route();
-    if (r.view !== 'gate') return;
+    if (r.view !== 'gate' || a.getAttribute('aria-disabled') === 'true') { e.preventDefault(); render(); return; }
     setGateDisabled(true);                         // 1. no second tap gets in
     const state = read();                          // 2. fresh state, tap-time clock
     const now = Date.now();
@@ -256,6 +286,7 @@
     else res = OH.dmPass(state, { app: r.id, now });
 
     if (!res.ok) {                                 // 3. refused: explain, re-enable via render
+      e.preventDefault();
       gateMsg = ''; customMsg = '';
       let text = '';
       if (res.reason === 'insufficient') text = 'You only have ' + OH.summary(state, now).balance + ' min left.';
@@ -265,28 +296,24 @@
       return;
     }
 
-    write(res.state);                              // 4. save, show the session, then jump
+    write(res.state);                              // 4. save, aim the link, show the session
+    a.href = unlockUrlFor(res.state, r.id, kind, res.event.min);
     gateMsg = ''; customMsg = '';
     $('gate-note').value = '';
     $('gate-custom-input').value = '';
     closeCustom();
     render();
-    const app = OH.getApp(res.state, r.id);
-    window.location.href = OH.buildUnlockUrl({
-      min: res.event.min, app: r.id, openUrl: unlockLink(app, kind), pageUrl: pageUrl(),
-    });
+    // No preventDefault: the browser now follows a.href to shortcuts://.
   }
 
-  // Re-launch an already-paid session (the user cancelled Safari's prompt,
-  // or the app didn't open). Charges nothing.
-  function reopen(appId) {
+  // Re-launch an already-paid session (the user cancelled the "open
+  // Shortcuts?" prompt, or the app didn't open). Charges nothing. Also an
+  // <a>: the href is refreshed at tap time so minLeft is current.
+  function reopen(e, appId) {
     const state = read();
     const active = OH.activeSession(state, appId, Date.now());
-    if (!active) { render(); return; }
-    const app = OH.getApp(state, appId);
-    window.location.href = OH.buildUnlockUrl({
-      min: active.minLeft, app: appId, openUrl: unlockLink(app, active.event.type), pageUrl: pageUrl(),
-    });
+    if (!active) { e.preventDefault(); render(); return; }
+    e.currentTarget.href = unlockUrlFor(state, appId, active.event.type, active.minLeft);
   }
 
   function closeCustom() {
@@ -295,10 +322,8 @@
   }
 
   function bindGate() {
-    $('gate-spend').addEventListener('click', (e) => {
-      const b = e.target.closest('button[data-min]');
-      if (!b || b.disabled) return;
-      buy('spend', Number(b.dataset.min), false);
+    document.querySelectorAll('#gate-spend a[data-min]').forEach((a) => {
+      a.addEventListener('click', (e) => buy(e, 'spend', Number(a.dataset.min), false));
     });
 
     $('gate-custom-toggle').addEventListener('click', () => {
@@ -310,25 +335,35 @@
       if (open) $('gate-custom-input').focus();
     });
 
-    $('gate-custom').addEventListener('submit', (e) => {
-      e.preventDefault();
+    $('gate-custom-spend').addEventListener('click', (e) => {
       const r = route();
-      if (r.view !== 'gate') return;
+      if (r.view !== 'gate') { e.preventDefault(); return; }
       const balance = OH.summary(read(), Date.now()).balance;
       const v = OH.validateCustom($('gate-custom-input').value, balance);
       if (!v.ok) {
+        e.preventDefault();
         customMsg = v.reason === 'zero' ? 'At least 1 minute.'
           : v.reason === 'insufficient' ? 'You only have ' + balance + ' min left.'
           : 'Whole minutes only.';
         $('gate-custom-msg').textContent = customMsg;
         return;
       }
-      buy('spend', v.min, true);
+      buy(e, 'spend', v.min, true);
+    });
+    // The keyboard's Go key submits the form; hand it to the Spend link so
+    // there is one path. (A scripted click: if Chrome refuses the jump from
+    // it, tapping Spend itself still works.)
+    $('gate-custom').addEventListener('submit', (e) => {
+      e.preventDefault();
+      $('gate-custom-spend').click();
     });
 
-    $('gate-emergency').addEventListener('click', () => buy('emergency', 0, false));
-    $('gate-dm-btn').addEventListener('click', () => buy('dm', 0, false));
-    $('gate-reopen').addEventListener('click', () => { const r = route(); if (r.view === 'gate') reopen(r.id); });
+    $('gate-emergency').addEventListener('click', (e) => buy(e, 'emergency', 0, false));
+    $('gate-dm-btn').addEventListener('click', (e) => buy(e, 'dm', 0, false));
+    $('gate-reopen').addEventListener('click', (e) => {
+      const r = route();
+      if (r.view === 'gate') reopen(e, r.id); else e.preventDefault();
+    });
 
     $('gate-notnow').addEventListener('click', () => {
       const r = route();
@@ -388,7 +423,7 @@
       const name = OH.getApp(state, id).name;
       activeList.append(el('li', { class: 'active-row' },
         el('span', { text: 'Unlocked now: ' + name + ' until ' + fmtTime(a.endsAt) }),
-        el('button', { type: 'button', class: 'btn btn-primary btn-small', 'aria-label': 'Open ' + name, onclick: () => reopen(id), text: 'Open' })));
+        el('a', { class: 'btn btn-primary btn-small unlock', href: unlockUrlFor(state, id, a.event.type, a.minLeft), 'aria-label': 'Open ' + name, onclick: (e) => reopen(e, id), text: 'Open' })));
     }
     activeList.hidden = activeList.children.length === 0;
 
@@ -594,6 +629,16 @@
       render();
     });
 
+    // Primary backup path: copy as text. Fills the textarea first; the
+    // document-level copy handler (bindCopy) then copies it in the same tap,
+    // which iOS requires for clipboard writes.
+    $('btn-copy-backup').addEventListener('click', () => {
+      $('export-text').value = OH.exportData(read());
+      $('export-box').hidden = false;
+    });
+
+    // Secondary: a file. Blob downloads in Chrome on iOS are unconfirmed,
+    // so this also leaves the text in the box as a fallback.
     $('btn-export').addEventListener('click', () => {
       const text = OH.exportData(read());
       $('export-text').value = text;
@@ -604,7 +649,7 @@
         document.body.append(a);
         a.click();
         a.remove();
-        // Revoking at once can cancel the download in Safari; give it a moment.
+        // Revoking at once can cancel the download on iOS; give it a moment.
         setTimeout(() => URL.revokeObjectURL(url), 10000);
       } catch (err) { /* the textarea is the fallback */ }
     });
@@ -646,7 +691,9 @@
 
   function renderSetup(state) {
     const base = pageUrl();
-    const fills = { pageUrl: base, gateUrl: base + '?app=' };
+    // The gate address goes into OH Gate's Open URLs, so it is the Chrome form;
+    // the page address stays https because that is what you bookmark.
+    const fills = { pageUrl: base, gateUrl: OH.toChromeUrl(base + '?app=') };
     document.querySelectorAll('[data-fill]').forEach((n) => { n.textContent = fills[n.dataset.fill]; });
     document.querySelectorAll('[data-copy-fill]').forEach((n) => { n.dataset.copy = fills[n.dataset.copyFill]; });
     $('test-unlock').href = OH.buildUnlockUrl({ min: 1, app: 'test', openUrl: '', pageUrl: base });
@@ -709,12 +756,13 @@
       const text = btn.dataset.copyFrom ? $(btn.dataset.copyFrom).value : btn.dataset.copy;
       if (!text) return;
       const label = btn.querySelector('.copy-label');
+      if (label && !label.dataset.idle) label.dataset.idle = label.textContent;
       const show = (word) => {
         if (!label) return;
         label.textContent = word;
         btn.classList.toggle('copied', word === 'Copied');
         clearTimeout(btn._t);
-        btn._t = setTimeout(() => { label.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+        btn._t = setTimeout(() => { label.textContent = label.dataset.idle; btn.classList.remove('copied'); }, 1600);
       };
       copyText(text).then(() => show('Copied'), () => show('Select it'));
     });

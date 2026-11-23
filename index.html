@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<div id="storage-banner" class="banner" role="alert" hidden>Safari is not saving data here (Private Browsing?). Spending won't be remembered.</div>
+<div id="storage-banner" class="banner" role="alert" hidden>Chrome is not saving data here (Incognito?). Spending won't be remembered.</div>
 
 <main class="wrap" id="main">
   <div id="notices" class="notices" role="status" aria-live="polite"></div>
@@ -38,7 +38,8 @@
 
     <div id="gate-active" class="stack" hidden>
       <p id="gate-active-text" class="lead"></p>
-      <button type="button" id="gate-reopen" class="btn btn-primary btn-block"></button>
+      <a id="gate-reopen" class="btn btn-primary btn-block unlock"></a>
+      <p class="hint">Once the app opens you can close this tab. The unlock doesn't depend on it.</p>
     </div>
 
     <div id="gate-note-field" class="field">
@@ -47,18 +48,18 @@
     </div>
 
     <div id="gate-spend" class="stack">
-      <button type="button" id="gate-last" class="btn btn-primary btn-block" data-min="0" hidden></button>
+      <a id="gate-last" class="btn btn-primary btn-block unlock" data-min="0" hidden></a>
       <div class="chips" role="group" aria-label="Minutes to spend">
-        <button type="button" class="chip" data-min="5"><span class="chip-num">5</span><span class="chip-unit">min</span></button>
-        <button type="button" class="chip" data-min="10"><span class="chip-num">10</span><span class="chip-unit">min</span></button>
-        <button type="button" class="chip" data-min="15"><span class="chip-num">15</span><span class="chip-unit">min</span></button>
+        <a class="chip unlock" data-min="5" aria-label="Spend 5 minutes"><span class="chip-num">5</span><span class="chip-unit">min</span></a>
+        <a class="chip unlock" data-min="10" aria-label="Spend 10 minutes"><span class="chip-num">10</span><span class="chip-unit">min</span></a>
+        <a class="chip unlock" data-min="15" aria-label="Spend 15 minutes"><span class="chip-num">15</span><span class="chip-unit">min</span></a>
         <button type="button" class="chip chip-plain" id="gate-custom-toggle" aria-expanded="false" aria-controls="gate-custom"><span class="chip-word">Custom</span></button>
       </div>
       <form id="gate-custom" class="custom" hidden novalidate>
         <label for="gate-custom-input">Minutes to spend</label>
         <div class="row">
           <input id="gate-custom-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" enterkeyhint="go">
-          <button type="submit" id="gate-custom-spend" class="btn btn-primary">Spend</button>
+          <a id="gate-custom-spend" class="btn btn-primary unlock" href="#">Spend</a>
         </div>
         <p id="gate-custom-msg" class="msg" role="alert"></p>
       </form>
@@ -67,15 +68,14 @@
     <div id="gate-empty" class="stack" hidden>
       <p class="lead">You're out of minutes for today. Resets at midnight.</p>
       <div id="gate-emergency-box" class="stack-tight" hidden>
-        <button type="button" id="gate-emergency" class="btn btn-amber btn-block"></button>
+        <a id="gate-emergency" class="btn btn-amber btn-block unlock"></a>
         <p class="hint">Logged as an emergency. Doesn't come back tomorrow.</p>
       </div>
     </div>
 
     <div id="gate-dm" class="stack-tight dm" hidden>
-      <button type="button" id="gate-dm-btn" class="btn btn-quiet btn-block"></button>
+      <a id="gate-dm-btn" class="btn btn-quiet btn-block unlock"></a>
       <p id="gate-dm-note" class="hint"></p>
-      <a id="gate-dm-web" class="textlink" href="https://www.instagram.com/direct/inbox/" rel="noopener" hidden>Or open DMs in Safari instead</a>
     </div>
 
     <p id="gate-msg" class="msg" role="alert"></p>
@@ -86,6 +86,7 @@
   <section id="view-unlocked" class="view" hidden aria-labelledby="unlocked-text">
     <h1 id="unlocked-text" class="title"></h1>
     <p id="unlocked-sub" class="lead"></p>
+    <p class="hint">You can close this tab.</p>
     <a class="btn btn-secondary btn-block" data-nav="home" href="#home">Home</a>
   </section>
 
@@ -167,24 +168,24 @@
 
     <div class="group" id="backup">
       <h2 class="group-title">Backup</h2>
-      <p class="hint">Your budget lives only in Safari on this phone. Export now and then, so clearing Safari doesn't wipe your history.</p>
-      <button type="button" id="btn-export" class="btn btn-secondary btn-block">Export</button>
+      <p class="hint">Your budget lives only in Chrome on this phone. Copy a backup now and then and paste it into Notes, so clearing Chrome's data doesn't wipe your history.</p>
+      <button type="button" id="btn-copy-backup" class="btn btn-primary btn-block" data-copy-from="export-text"><span class="copy-label">Copy backup</span></button>
+      <button type="button" id="btn-export" class="btn btn-secondary btn-block">Download as a file</button>
       <div id="export-box" class="stack-tight" hidden>
-        <label for="export-text">If no download appeared, copy this and keep it in Notes:</label>
+        <label for="export-text">Your backup. If Copy didn't work, select all of it and copy it by hand:</label>
         <textarea id="export-text" readonly rows="5"></textarea>
-        <button type="button" class="btn btn-quiet btn-block" data-copy-from="export-text"><span class="copy-label">Copy</span></button>
       </div>
 
       <h3 class="sub-title" id="import">Import</h3>
       <div class="field">
-        <label for="import-file">Backup file</label>
-        <input id="import-file" type="file" accept=".json,application/json,text/plain">
-      </div>
-      <div class="field">
-        <label for="import-text">Or paste a backup</label>
+        <label for="import-text">Paste a backup</label>
         <textarea id="import-text" rows="4" autocapitalize="none" autocorrect="off" spellcheck="false"></textarea>
       </div>
       <button type="button" id="btn-import" class="btn btn-secondary btn-block">Import pasted backup</button>
+      <div class="field">
+        <label for="import-file">Or pick a backup file</label>
+        <input id="import-file" type="file" accept=".json,application/json,text/plain">
+      </div>
       <p id="msg-import" class="msg" role="status"></p>
     </div>
 
@@ -198,7 +199,7 @@
   <!-- ============ SETUP GUIDE (SPEC section 8) ============ -->
   <section id="view-setup" class="view prose" hidden aria-labelledby="setup-title">
     <h1 id="setup-title" class="title">Setup guide</h1>
-    <p><strong>Use this page in Safari. Do not Add to Home Screen; a home-screen copy keeps separate data and the shortcuts open Safari.</strong></p>
+    <p><strong>Use this page in Chrome, in a normal tab. Do not Add to Home Screen; a home-screen copy may keep separate data, and the shortcuts open Chrome.</strong></p>
 
     <div class="addr">
       <p class="addr-label">Your page address</p>
@@ -211,10 +212,10 @@
     <ol>
       <li>iPhone on iOS 17 or later (Settings &gt; General &gt; About). Older versions ask for confirmation on every app open.</li>
       <li>Settings &gt; [your name] &gt; iCloud &gt; iCloud Drive is on. The unlock files live in iCloud Drive &gt; Shortcuts.</li>
-      <li>Safari must be your default browser (Settings &gt; Apps &gt; Safari &gt; Default Browser App &gt; Safari). Otherwise the gates open in a different browser, which keeps a separate wallet.</li>
-      <li>Open the web app address in Safari and bookmark it.</li>
-      <li>Optional, keeps Safari tidy because every gate opens a new tab: Settings &gt; Apps &gt; Safari &gt; Close Tabs &gt; After One Day.</li>
-      <li>Never make an automation for Safari, Shortcuts, Clock or Files.</li>
+      <li>Chrome is your default browser (Settings &gt; Apps &gt; Chrome &gt; Default Browser App &gt; Chrome), and you always open this page in Chrome. Don't use an Incognito tab: it keeps a separate wallet and wipes it when you close it.</li>
+      <li>Open the web app address in Chrome and bookmark it.</li>
+      <li>Optional, keeps Chrome tidy because every gate opens a new tab: in Chrome, Settings &gt; Tabs &gt; Inactive Tabs moves tabs you haven't used out of the way. Close old tabs from the tab switcher now and then.</li>
+      <li>Never make an automation for Chrome, Shortcuts, Clock or Files.</li>
     </ol>
 
     <h2>How to read the steps</h2>
@@ -246,7 +247,7 @@
     </ol>
 
     <div class="check">
-      <p><strong>Check 1.</strong> Tap the <strong>Test OH Unlock</strong> button in this guide. Expect, in order: Safari may ask "Open in Shortcuts?" → Open. Shortcuts may ask permission to save a file and to open a link → <strong>Always Allow</strong>. A 1-minute timer starts. Safari shows "Test passed."</p>
+      <p><strong>Check 1.</strong> Tap the <strong>Test OH Unlock</strong> button in this guide. Expect, in order: Chrome may ask to open Shortcuts → <strong>Open</strong>. Shortcuts may ask permission to save a file and to open a link → <strong>Always Allow</strong>. A 1-minute timer starts. Chrome comes back and shows "Test passed."</p>
       <a id="test-unlock" class="btn btn-primary btn-block" href="#setup">Test OH Unlock</a>
       <p class="hint">The test writes onehour-test.txt, starts a 1-minute timer and comes back here. It logs nothing and unlocks no real app.</p>
     </div>
@@ -264,14 +265,14 @@
       <li><strong>Get Dates from Input</strong>. It reads "Get dates from <strong>File</strong>". Leave it as it is.</li>
       <li><strong>If</strong>. The first slot should say <strong>Dates</strong>; if not, tap it and pick <strong>Dates</strong>. Tap <strong>Condition</strong> and choose <strong>is after</strong>. Tap the slot that appears next to it and pick <strong>Current Date</strong>. The If brings <strong>Otherwise</strong> and <strong>End If</strong> with it.</li>
       <li><strong>Stop This Shortcut</strong>. Drag it so it sits directly under <strong>If</strong>, above <strong>Otherwise</strong>.</li>
-      <li><strong>Open URLs</strong>. Drag it under <strong>Otherwise</strong>, above <strong>End If</strong>. Tap its slot, type or paste your page address followed by <code>?app=</code>, then pick the variable <strong>Shortcut Input</strong>, not File and not Dates. This guide shows that exact address with a Copy button. <button type="button" class="tok" data-copy-fill="gateUrl"><code data-fill="gateUrl"></code><span class="copy-label">Copy</span></button></li>
+      <li><strong>Open URLs</strong>. Drag it under <strong>Otherwise</strong>, above <strong>End If</strong>. Tap its slot and paste the gate address (it starts with googlechromes://, which makes it open in Chrome), then pick the variable <strong>Shortcut Input</strong>, not File and not Dates. This guide shows that exact address with a Copy button. <button type="button" class="tok" data-copy-fill="gateUrl"><code data-fill="gateUrl"></code><span class="copy-label">Copy</span></button></li>
     </ol>
     <ol start="2">
       <li>Tap <strong>Done</strong>.</li>
     </ol>
 
     <div class="check">
-      <p><strong>Check 3.</strong> Before making any automation, run OH Gate once by hand: in the Shortcuts list, tap <strong>OH Gate</strong>. If it asks for text, leave it empty and tap Done. Answer every prompt (access to a file, opening a link) with <strong>Always Allow</strong>. Pass: Safari opens this page with the notice "That link did not name an app." That is expected here, because nothing told OH Gate which app it was. Doing it now means the prompts appear in front of you, not hidden while an app is opening.</p>
+      <p><strong>Check 3.</strong> Before making any automation, run OH Gate once by hand: in the Shortcuts list, tap <strong>OH Gate</strong>. If it asks for text, leave it empty and tap Done. Answer every prompt (access to a file, opening a link) with <strong>Always Allow</strong>. Pass: Chrome opens this page with the notice "That link did not name an app." That is expected here, because nothing told OH Gate which app it was. If Safari opens instead, see Troubleshooting. Doing it now means the prompts appear in front of you, not hidden while an app is opening.</p>
     </div>
 
     <h2>Stage 3: one automation per app (2 actions each)</h2>
@@ -281,8 +282,8 @@
     <div class="check">
       <p><strong>Check 4 (the whole loop).</strong> Open Instagram from the Home Screen.</p>
       <ul>
-        <li>Safari should open on the gate showing "Instagram" and your balance. (This is also the "no unlock file yet" case.)</li>
-        <li>Tap <strong>5</strong>. Allow any prompts. Instagram opens and stays open. A 5-minute timer is running.</li>
+        <li>Chrome should open on the gate showing "Instagram" and your balance. (This is also the "no unlock file yet" case.)</li>
+        <li>Tap <strong>5 min</strong>. Chrome may ask to open Shortcuts: tap <strong>Open</strong>. Allow any other prompts. Instagram opens and stays open. A 5-minute timer is running.</li>
         <li>Go to the Home Screen and open Instagram again: it opens straight away.</li>
         <li>After the timer rings, leave Instagram and open it again: the gate is back and the balance shows 55.</li>
       </ul>
@@ -296,7 +297,9 @@
     <dl class="trouble">
       <dt>"Shortcut not found" / nothing runs after tapping a spend button</dt>
       <dd>The shortcut must be named exactly <button type="button" class="tok" data-copy="OH Unlock"><code>OH Unlock</code><span class="copy-label">Copy</span></button></dd>
-      <dt>Check 1: Safari never shows "Test passed"</dt>
+      <dt>Chrome never offers to open Shortcuts when you tap Test OH Unlock or a spend button</dt>
+      <dd>Check that the shortcut is named exactly <button type="button" class="tok" data-copy="OH Unlock"><code>OH Unlock</code><span class="copy-label">Copy</span></button>. If Chrome still never offers it, this route can't work on your phone: switch to Plan B, where OH Gate asks for the minutes itself with a menu and this page only shows your stats</dd>
+      <dt>Check 1: Chrome never shows "Test passed"</dt>
       <dd>OH Unlock actions 4 and 6 must read from <strong>Split Text</strong>, and action 12 must open the variable <strong>Link</strong>. A list slot left on Item from List makes Link empty or wrong</dd>
       <dt>Check 2: the file is called onehour-.txt (nothing between the dash and the dot), or the gate never unlocks</dt>
       <dd>OH Unlock action 4 reads the wrong list, so App is empty. Pick <strong>Split Text</strong> there</dd>
@@ -314,14 +317,16 @@
       <dd>The file names must match: OH Unlock action 10 and OH Gate action 1 must both be onehour- + variable + .txt. Open the file in Files: right after spending it must show a time in the future. If it does, check OH Gate action 3 says <strong>is after</strong>, not is before</dd>
       <dt>The gate page says "That link did not name an app" when you open an app</dt>
       <dd>OH Gate action 5: the variable Shortcut Input is missing after ?app=, or the automation's Run Shortcut has no Input. (In Check 3 this notice is the expected result)</dd>
-      <dt>Gates open in Chrome or another browser, with a full balance</dt>
-      <dd>Make Safari the default browser: Settings &gt; Apps &gt; Safari &gt; Default Browser App</dd>
-      <dt>Instagram and Safari keep swapping forever</dt>
+      <dt>The gate opens in Safari instead of Chrome</dt>
+      <dd>OH Gate action 5 must start with googlechromes://. Copy the gate address from this guide again</dd>
+      <dt>The gate shows a full balance and none of your history</dt>
+      <dd>It opened in an Incognito tab or another browser. Use a normal Chrome tab, and keep Chrome as the default browser</dd>
+      <dt>Instagram and Chrome keep swapping forever</dt>
       <dd>Some shortcut has an <strong>Open App</strong> action. Delete it. Turn the automation off first: Shortcuts &gt; Automation &gt; tap it &gt; toggle</dd>
       <dt>iOS asks "Run automation?" each time</dt>
       <dd>Open the automation and switch it to <strong>Run Immediately</strong></dd>
       <dt>The balance is back to full and history is gone</dt>
-      <dd>Safari's data was cleared. <a data-nav="settings" href="#settings">Settings</a> &gt; Import your last backup</dd>
+      <dd>Chrome's site data was cleared (Clear Browsing Data). <a data-nav="settings" href="#settings">Settings</a> &gt; Import your last backup</dd>
     </dl>
   </section>
 
@@ -334,7 +339,8 @@
       <li><strong>Minutes are counted when you buy them, not while you scroll.</strong> Buy 10 and leave after 2, and 10 are still spent. That is on purpose.</li>
       <li><strong>Nothing closes the app when time is up.</strong> The timer rings; the app stays open. The gate only comes back the next time you open or return to the app.</li>
       <li><strong>While an app is unlocked, it is unlocked however you open it</strong>, including from search or a notification.</li>
-      <li><strong>The wallet lives in Safari on this phone.</strong> Clearing Safari's website data resets the balance and the history. Safari can also clear it by itself if you do not visit this page for about a week. Export a backup from Settings now and then.</li>
+      <li><strong>The wallet lives in Chrome on this phone.</strong> Chrome's Clear Browsing Data (cookies and site data) wipes the balance and the history, and an Incognito tab starts with an empty wallet. iPhone browsers can also clear it by themselves if you do not visit this page for about a week. Copy a backup from Settings now and then.</li>
+      <li><strong>Every gate opens a new Chrome tab.</strong> Close old ones now and then, or turn on Chrome's inactive-tabs setting.</li>
       <li><strong>You can edit your own rules.</strong> Raising the daily budget only starts tomorrow once you have spent today, but passes, caps and the app list can be changed at any time.</li>
       <li><strong>The DM pass is just three free minutes in the real Instagram.</strong> No web page can hide the feed inside Instagram's own app. The paid app does this with a private in-app view; this free version cannot.</li>
       <li><strong>A few edge cases.</strong> If you travel to another time zone, "today" follows the phone's clock, so that day's budget can cover a few hours more or less. Tapping Open again while an app is unlocked starts another timer and can stretch the unlock by up to a minute. If iCloud Drive is off, the unlock files may not save.</li>
